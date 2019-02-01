@@ -1,148 +1,89 @@
 import os
+import glob
 import tensorflow as tf
 import time
 import numpy as np
-from collections import defaultdict
-import cv2
+from scipy.io import wavfile
+import csv
+from operator import eq
+#from itertools import 
 
-
-class params(object):
+class Params(object):
 	def __init__(self):
-		self.train_data = './train/data/'
-		self.train_gt = './train/gt/'
-		self.val_data = './val/data/'
-		self.val_gt = './val/gt/'
-		self.save_path="./model_files/"
-		self.val_image_dump="./val/result/"
-		self.val_mask='./val/mask/'
-		self.result_fold = './result/'
-		self.test_data = './test/data/'
-		self.test_videos = './test/videos/'
-		print("")
-		print("")
-		print("----------------------------------processign dirpaths----------------------------------------- ")
-		print("the training data will be taken from ",self.train_data,"and ground truths from ",self.train_gt)
-		print("the validation data will be take from ",self.val_data,"and ground truths from ",self.val_gt)
-		print("please make sure the above directories are correct")
-		print("----------------------------------------------------------------------------------------------")
-		
-		time.sleep(0.3)
-		self.num_classes = 2
-		self.mask_fraction = 0.75
-		self.gt_image_format = '.png'
-		self.data_image_format = '.png'
-		self.height = 704
-		self.width = 1280
-		self.aspect_ratio = float(self.width)/self.height
-		self.img_channels = 3
-		self.ch_colors = 255.0
-		self.epochs = 20
-		self.init_epochs = 0 
-		self.train_losses = []
-		self.val_losses = []
-		self.train_data_names = []
-		self.train_gt_names = []
-		self.val_data_names = []
-		self.val_gt_names = []
-		self.class_color={0:0,120:1,20:1,70:1,170:1} # import a json file later 
-		self.label2color_table=np.array([[0,0,0],[0,0,255]]) #  import another json file or a csv preferably csv 
-		self.confusion_mat = np.zeros((self.num_classes,self.num_classes))
-		self.counter_mat = np.zeros((self.num_classes))
-
-		self.default_channels = ['/camera2/image_raw']
-		self.ensure_dir(self.save_path)
-
-		self.format = "XVID"
-		self.fourcc = cv2.VideoWriter_fourcc(*(self.format))
-		
-		self.train_data_names,self.train_gt_names = self.get_learning_data('training')
-		self.val_data_names,self.val_gt_names = self.get_learning_data('validation')
-		print("")
-		print("")
-		print("-----------------------------training data consistency check results---------------------------")
-		self.train_data_size = len(self.train_gt_names)
-		print(self.train_data_size,'train data size')
-		print("-----------------------------------------------------------------------------------------------")
-		time.sleep(0.1)
-		print("")
-		print("")
-		print("----------------------------validation data consistency check results-------------------------")
-		self.val_data_size = len(self.val_gt_names)
-		print(self.val_data_size,'val data size')
-		print("---------------------------------------------------------------------------------------------")
-		self.inputs=tf.placeholder(tf.float32, shape=[None, self.height, self.width, 3])
-		self.semantics = tf.placeholder(tf.float32, shape=[None, self.height, self.width, self.num_classes])
-
-	def get_learning_data(self,args):
-		if(args == 'training'):
-			gt_fold = self.train_gt
-			data_fold = self.train_data
-		elif(args == 'validation'):
-			gt_fold = self.val_gt
-			data_fold = self.val_data
-		else:
-			print('######################################')
-			print('###### error in argument passed ######')
-			print('######################################')
-			return
-
-		folders = self.get_folders(gt_fold)
-		names = self.get_files(folders,self.gt_image_format)
-		gt_names = []
-		data_names = []
-		print("---------------------------------------")
-		print("checking data and gt images consistency")
-		print("---------------------------------------")
-		
-		for name in names:
-			
-			data_name = data_fold + name[len(gt_fold):-(len(self.gt_image_format))] + self.data_image_format
-			gt_names.append(name)
-			data_names.append(data_name)
-		return data_names,gt_names
-
-	def count_data(self,args="training"):
-		if args == "training":
-			directory1=self.train_data
-			directory2=self.train_gt
-		elif args == "validation":
-			directory1=self.val_data
-			directory2=self.val_gt
-
-		files_data = [i for i in os.listdir(directory1) if i.endswith(".jpg")]
-		files_gt = [i for i in os.listdir(directory2) if i.endswith(".png")]
-		if len(files_gt)==len(files_data):
-			print("the count of images in GT and data are consistent")
-			return len(files_gt)
-		else: 	  
-			print("the count of images in GT and data are NOT consistent")
-			if len(files_gt)<len(files_data):
-				print("gt has lower images hence using it ")
-				return len(files_gt)
-			else: 
-				print("data has lower images hence using it ")
-				return len(files_data) 
-	def load_pre_details(self):
-		self.init_epochs = int(self.checkpoint[19:-5])+1
+		self.Names2Label={	"air_conditioner":0, "car_horn":1,
+							"children_playing":2,"dog_bark":3,
+							"drilling":4,"engine_idling":5,
+							"gun_shot":6,"jackhammer":7,
+							"siren":8,"street_music":9
+						}
+		self.WavFileDirectory='./URBAN-SED_v2.0.0/audio/train/'
+		self.TxtAnnotationDirectory='./URBAN-SED_v2.0.0/annotations/train/'
+		self.NumClasses=10
+		self.TotalEpochs=20
+		self.SignalLength=441000
+		self.WindowSize=11025
 	
-	def get_folders(self,root_folder):
-		folders = []
-		folders.append(root_folder)
-		for (dirpath, dirnames, filenames) in os.walk(root_folder):
-			for fold in dirnames:
-				folders.append(dirpath + '/' + fold + '/')
-		return(folders)
+	def FetchAnnotation(self,Name):
+		"""
+		We take the annotation data and generate a one hot label for each 
+		element in the sound vector.
 
-	def get_files(self,folders,ext):
-		files = []
-		for folder in folders:
-			files_fold = ([(folder+i) for i in os.listdir(folder) if i.endswith(ext)])
-			files_fold.sort()
-			for filename in files_fold:
-				files.append(filename)
-		return(files)
+		For a sound of type 	 [aaaabbbbaaa]
+		we have the annotation  [[00001111000],
+								 [11110000111]]
+		which is a psuedo one hot vector annotationn
+		"""
+		Annotation=np.zeros((self.SignalLength,self.NumClasses))
+		with open(Name) as f:
+			reader = csv.reader(f, delimiter="\t")
+			AnnotationCSV = list(reader)
+		for category in AnnotationCSV:
+			Annotation[int(44100*float(category[0])):int(44100*float(category[1])),self.Names2Label[category[2]]]=1
+		return Annotation
 
-	def ensure_dir(self,file_path):
-		directory = os.path.dirname(file_path)
-		if not os.path.exists(directory):
-			os.makedirs(directory)
+	def FetchSignal(self,Name):
+		SamplingFrequency, Data = wavfile.read(Name)
+		return Data
+
+	def FetchInputsAndLabels(self):
+		WaveFilesList=[]
+		AnnotationFileList=[]
+
+		for file in glob.glob(self.WavFileDirectory+"*.wav"):
+			WaveFilesList.append(file)
+
+		for file in glob.glob(self.TxtAnnotationDirectory+"*.txt"):
+			AnnotationFileList.append(file)
+
+		WaveFilesList.sort()	
+		AnnotationFileList.sort()
+
+		
+		for WavFileName,AnnotationFileName in zip(WaveFilesList,AnnotationFileList):
+			"""
+
+			Some reshaping op
+
+			"""
+			WaveArray=self.FetchSignal(WavFileName)
+			LabelArray=self.FetchAnnotation(Name=AnnotationFileName)
+
+			DynamicBatchSize=np.array(WaveArray.shape)//self.WindowSize
+			
+			BatchedWaveFile=np.zeros((DynamicBatchSize[0],self.WindowSize))
+			BatchedLabelFile=np.zeros((DynamicBatchSize[0],self.WindowSize,self.NumClasses))
+
+			for i in range(DynamicBatchSize):
+				BatchedWaveFile[i,:]=WaveArray[i*self.WindowSize:(i+1)*self.WindowSize]
+				BatchedLabelFile[i,:,:]=LabelArray[i*self.WindowSize:(i+1)*self.WindowSize,:]
+			yield BatchedWaveFile,BatchedLabelFile
+			
+		
+
+
+			
+				
+
+
+
+	
