@@ -4,12 +4,12 @@ import time
 import numpy as np
 from scipy.io import wavfile
 import csv
-from Parameters import Parameters
+from Parameters import Parameter
 from operator import eq
 from scipy import stats
 from python_speech_features import mfcc
 
-class DataProcessing(Parameters):
+class DataProcessing(Parameter):
 	def __init__(self):
 		super(DataProcessing, self).__init__()
 		self.Names2Label={	"air_conditioner":0, "car_horn":1,
@@ -32,7 +32,7 @@ class DataProcessing(Parameters):
 								 [11110000111]]
 		which is a psuedo one hot vector annotationn
 		"""
-		Annotation=np.zeros(self.SignalLength/self.SubSamplingRate)
+		Annotation=np.zeros(int(self.SignalLength/self.SubSamplingRate))
 		with open(Name) as f:
 			reader = csv.reader(f, delimiter="\t")
 			AnnotationCSV = list(reader)
@@ -40,20 +40,20 @@ class DataProcessing(Parameters):
 		for category in AnnotationCSV:
 			Annotation[	int(self.SamplingFrequency*float(category[0])/self.SubSamplingRate):
 						int(self.SamplingFrequency*float(category[1])/self.SubSamplingRate)] =self.Names2Label[category[2]]
-		
 		Annotation = Annotation.reshape((-1,int(self.WindowTime*self.SamplingFrequency/self.SubSamplingRate)))
+		
 		Time2WindowLabel=np.zeros((Annotation.shape[0],self.NumClasses))
 		
 		for i in range(Annotation.shape[0]):
-			Time2WindowLabel[i,:]=np.eye(self.NumClasses)[stats.mode(Annotation[i,:]).mode[0]] 
-
-		return Annotation
+			Time2WindowLabel[i,:]=np.eye(self.NumClasses)[int(stats.mode(Annotation[i,:]).mode[0])] 
+		print("Timed to window",Time2WindowLabel.shape)	
+		return Time2WindowLabel
 
 	def FetchSignal(self,Name):
 		SamplingFrequency, Data = wavfile.read(Name)
 		Data=Data[::self.SubSamplingRate]
-		Data=python_speech_features.base.mfcc(signal=Data,samplerate=self.SamplingFrequency/self.SubSamplingRate,
-											winlen=self.WindowTime,winstep=self.WindowStep,winfunc=np.hamming,numcep=self.NumCep)
+		Data=mfcc(signal=Data,samplerate=self.SamplingFrequency/self.SubSamplingRate,nfft=self.WindowSize,nfilt=100,
+					winlen=self.WindowTime,winstep=self.WindowStep,winfunc=np.hamming,numcep=self.NumCep)
 
 		"""
 		the size of Data is  SignalLength/WindowTime,NumCep
@@ -82,6 +82,9 @@ class DataProcessing(Parameters):
 			"""
 			WaveArray=self.FetchSignal(WavFileName)
 			LabelArray=self.FetchAnnotation(Name=AnnotationFileName)
+			print(WaveArray.shape)
+			
+			yield WaveArray,LabelArray
 						
 		
 
