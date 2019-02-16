@@ -23,11 +23,11 @@ class LSTM(nn.Module):
 		self.num_layers4 = 1
 		self.num_layers5 = 1
 		
-		self.hidden_dim1 = 100
-		self.hidden_dim2 = 100
-		self.hidden_dim3 = 100
-		self.hidden_dim4 = 100
-		self.hidden_dim5 = 100
+		self.hidden_dim1 = 1000
+		self.hidden_dim2 = 1000
+		self.hidden_dim3 = 1000
+		self.hidden_dim4 = 1000
+		self.hidden_dim5 = 1000
 
 		self.batch_size = 1
 		
@@ -61,32 +61,22 @@ class LSTM(nn.Module):
 		
 		lstm_out1, self.hidden1 = self.LSTM1(input.view(-1,100,100),self.hidden1)
 		lstm_out1 = F.relu(lstm_out1)
-		print(lstm_out1.size())
-		print("1")
-
+		
 		lstm_out2, self.hidden2 = self.LSTM2(lstm_out1.view(-1,100,100),self.hidden2)
 		lstm_out2 = F.relu(lstm_out2)		
-		print(lstm_out2.size())
-		print("2")
-
+		
 		lstm_out3, self.hidden3 = self.LSTM3(lstm_out2.view(-1,100,100),self.hidden3)
 		lstm_out3 = F.relu(lstm_out3)		
-		print(lstm_out3.size())
-		print("3")
-
+		
 		lstm_out4, self.hidden4 = self.LSTM4(lstm_out3.view(-1,100,100),self.hidden4)
 		lstm_out4 = F.relu(lstm_out4)
-		print(lstm_out4.size())
-		print("4")
-
+		
 		lstm_out5, self.hidden5 = self.LSTM5(lstm_out4.view(-1,100,100),self.hidden5)
 		
 		Output= self.hidden2tag(lstm_out5)
 		Output = torch.sigmoid(Output)
 		
-		print(Output.size())
-		print("5")
-
+		
 		# Only take the output from the final timetep
 		# Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
 		

@@ -8,7 +8,7 @@ from model import LSTM
 import numpy as np
 
 models = LSTM()
-loss_function = nn.CrossEntropyLoss()
+loss_function = nn.BCELoss(size_average=True,reduce=True)
 optimizer = optim.SGD(models.parameters(), lr=0.1)
 
 # See what the scores are before training
@@ -24,14 +24,15 @@ for epoch in range(300):  # again, normally you would NOT do 300 epochs, it is t
 		# We need to clear them out before each instance
 		models.zero_grad()
 		models.init_hidden()
-		print(label.shape)
-		print("33333")
 		# Also, we need to clear out the hidden state of the LSTM,
 		# detaching it from its history on the last instance.
 		output = models(torch.tensor(wav).float())
-		
+		#print(output)
+		#print(label)
 		# Step 4. Compute the loss, gradients, and update the parameters by
 		#  calling optimizer.step()
-		loss = loss_function(output, torch.tensor(label).long())
+		loss = loss_function(output, torch.tensor(label).float())
+		print(loss)
+		
 		loss.backward()
 		optimizer.step()
