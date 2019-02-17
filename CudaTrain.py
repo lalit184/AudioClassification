@@ -9,7 +9,8 @@ import numpy as np
 import time
 
 
-models = LSTM()
+models = LSTM().double()
+models=models.cuda()
 loss_function = nn.BCELoss(size_average=True,reduce=True)
 optimizer = optim.Adam(models.parameters())
 

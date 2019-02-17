@@ -15,6 +15,7 @@ class LSTM(nn.Module):
 		self.input_dim4 = self.ParameterObject.NumCep
 		self.input_dim5 = self.ParameterObject.NumCep
 
+		self.InterimOutputDim=100
 		self.output_dim5 = 10
 
 		self.num_layers1 = 1
@@ -23,11 +24,11 @@ class LSTM(nn.Module):
 		self.num_layers4 = 1
 		self.num_layers5 = 1
 		
-		self.hidden_dim1 = 1000
-		self.hidden_dim2 = 1000
-		self.hidden_dim3 = 1000
-		self.hidden_dim4 = 1000
-		self.hidden_dim5 = 1000
+		self.hidden_dim1 = 100
+		self.hidden_dim2 = 100
+		self.hidden_dim3 = 100
+		self.hidden_dim4 = 100
+		self.hidden_dim5 = 100
 
 		self.batch_size = 1
 		
@@ -39,6 +40,10 @@ class LSTM(nn.Module):
 		self.LSTM4 = nn.LSTM(self.input_dim4, self.hidden_dim4, self.num_layers4,batch_first=True)
 		self.LSTM5 = nn.LSTM(self.input_dim5, self.hidden_dim5, self.num_layers5,batch_first=True)
 
+		#self.hidden2tag1 = nn.Linear(self.hidden_dim1, self.InterimOutputDim)
+		#self.hidden2tag2 = nn.Linear(self.hidden_dim2, self.InterimOutputDim)
+		#self.hidden2tag3 = nn.Linear(self.hidden_dim3, self.InterimOutputDim)
+		#self.hidden2tag4 = nn.Linear(self.hidden_dim4, self.InterimOutputDim)
 		self.hidden2tag = nn.Linear(self.hidden_dim5, self.output_dim5)
 
 		

@@ -46,12 +46,12 @@ class DataProcessing(Parameter):
 		
 		for i in range(Annotation.shape[0]):
 			Time2WindowLabel[i,:]=np.eye(self.NumClasses)[int(stats.mode(Annotation[i,:]).mode[0])] 
-		print("Timed to window",Time2WindowLabel.shape)	
 		return Time2WindowLabel
 
 	def FetchSignal(self,Name):
 		SamplingFrequency, Data = wavfile.read(Name)
 		Data=Data[::self.SubSamplingRate]
+		Data=Data[:441000]
 		Data=mfcc(signal=Data,samplerate=self.SamplingFrequency/self.SubSamplingRate,nfft=self.WindowSize,nfilt=100,
 					winlen=self.WindowTime,winstep=self.WindowStep,winfunc=np.hamming,numcep=self.NumCep)
 
@@ -80,9 +80,9 @@ class DataProcessing(Parameter):
 			Some reshaping op
 
 			"""
+			#print(WavFileName,AnnotationFileName)
 			WaveArray=self.FetchSignal(WavFileName)
 			LabelArray=self.FetchAnnotation(Name=AnnotationFileName)
-			print(WaveArray.shape)
 			
 			yield WaveArray,LabelArray
 						
